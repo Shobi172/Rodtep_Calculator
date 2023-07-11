@@ -20,10 +20,12 @@ git clone https://github.com/Shobi172/RoDTEP-Calculator.git
 
 
 cd frontend
+
 npm install
 
 
 cd ../backend
+
 npm install
 
 
@@ -32,10 +34,12 @@ npm install
 
 
 cd frontend
+
 npm start
 
 
 cd ../backend
+
 npm start
 
 
@@ -50,7 +54,9 @@ npm start
 
 
 Storage of Tariff item, Description of goods, RoDTEP rate, UQC/UOM, and Cap (Rs per UQC) table in the database
+
 Calculation of RoDTEP value based on the entered HSN code or product description and export value
+
 Consideration of the cap limit and UQC to determine the final RoDTEP amount
 
 

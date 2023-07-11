@@ -53,11 +53,11 @@ npm start
 ### SmartSpace provides the following features:
 
 
-Storage of Tariff item, Description of goods, RoDTEP rate, UQC/UOM, and Cap (Rs per UQC) table in the database
+- Storage of Tariff item, Description of goods, RoDTEP rate, UQC/UOM, and Cap (Rs per UQC) table in the database
 
-Calculation of RoDTEP value based on the entered HSN code or product description and export value
+- Calculation of RoDTEP value based on the entered HSN code or product description and export value
 
-Consideration of the cap limit and UQC to determine the final RoDTEP amount
+- Consideration of the cap limit and UQC to determine the final RoDTEP amount
 
 
 # Technologies Used

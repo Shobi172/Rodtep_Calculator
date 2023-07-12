@@ -1,93 +1,150 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ReactTable from "react-table-6";
 import "react-table-6/react-table.css";
 import instance from "../axios";
 
 function Calculation() {
-  const [hsnCode, setHsnCode] = useState("");
-  const [productDescription, setProductDescription] = useState("");
-  const [uqc, setUQC] = useState("");
-  const [cap, setCap] = useState("");
-  const [tariffItemDetails, setTariffItemDetails] = useState([]);
+  const [weight, setWeight] = useState("");
+  const [amount, setAmount] = useState("");
   const [roDTEP, setRoDTEP] = useState(null);
+  const [tableData, setTableData] = useState([]);
+  const [hsnCode, setHsnCode] = useState("");
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  useEffect(() => {
+    setTableData([]);
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const response = await instance.get("/api/getTariff-items", {
+        params: { hsnCode: hsnCode },
+      });
+      const tariffItems = response.data;
+
+      setTableData(tariffItems);
+
+      const selectedItem = tariffItems.find((item) => item.hsnCode === hsnCode);
+      setSelectedItem(selectedItem);
+    } catch (error) {
+      console.error("Error fetching tariff items:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [hsnCode]);
 
   const handleCalculateRoDTEP = async () => {
     try {
-      const response = await instance.post("/api/tariff-items", {
-        hsnCode,
-        productDescription,
-        uqc,
-        cap,
-      });
-
-      const data = response.data;
-      setTariffItemDetails([data]);
-      const calculatedRoDTEP = calculateRoDTEP(data.cap, data.uqc);
+      const calculatedRoDTEP = calculateRoDTEP(weight, amount);
       setRoDTEP(calculatedRoDTEP);
     } catch (error) {
       console.error(error);
     }
   };
-  const calculateRoDTEP = (cap, uqc) => {
-    const capValue = parseFloat(cap);
 
-    if (isNaN(capValue) || capValue <= 0) {
-      return "Invalid Cap";
-    }
+  const calculateRoDTEP = (weight, amount) => {
+    const rate = selectedItem?.rodtepRate || 0;
+    const conversionRate = 85;
 
-    const totalIncentiveAmount = 0.025 * capValue;
-    let roDTEPValue;
+    const rateWithoutPercentage = parseFloat(rate.replace("%", ""));
 
-    const lowercaseUqc = (uqc ?? "").toLowerCase();
+    const incentive = (amount * rateWithoutPercentage) / 100;
+    const incentiveInRupees = incentive * conversionRate;
+    const incentivePerKg = incentiveInRupees / weight;
 
-    if (lowercaseUqc === "kg") {
-      const incentivePerUnitWeight = totalIncentiveAmount / capValue;
-      roDTEPValue = Math.min(incentivePerUnitWeight, 16);
-    } else if (lowercaseUqc === "u") {
-      roDTEPValue = Math.min(totalIncentiveAmount, 16);
+    let finalIncentive;
+    if (selectedItem?.cap && incentivePerKg > selectedItem.cap) {
+      finalIncentive = selectedItem.cap * weight;
     } else {
-      return (roDTEPValue * 100).toFixed(1) + "%";
+      finalIncentive = incentiveInRupees;
     }
 
-    return (roDTEPValue * 100).toFixed(1) + "%";
+    return finalIncentive;
   };
 
-  const columns = [
-    {
-      Header: "Sr No.",
-      accessor: "srNo",
-      Cell: ({ index }) => index + 1,
-    },
+  const showTable = () => {
+    return tableData.length > 0;
+  };
 
-    {
-      Header: "HSN Code",
-      accessor: "hsnCode",
-      id: "hsnCode",
-    },
-    {
-      Header: "Product Description",
-      accessor: "productDescription",
-      id: "productDescription",
-    },
-    {
-      Header: "UQC",
-      accessor: "uqc",
-      id: "uqc",
-    },
-    {
-      Header: "Cap",
-      accessor: "cap",
-      id: "cap",
-    },
-    {
-      Header: "RoDTEP",
-      accessor: "roDTEP",
-      id: "roDTEP",
-      Cell: ({ original }) => {
-        return <span>{calculateRoDTEP(original.cap)}</span>;
-      },
-    },
-  ];
+  const renderTable = () => {
+    if (showTable()) {
+      const filteredData = tableData.filter((item) => item.hsnCode === hsnCode);
+
+      if (filteredData.length > 0) {
+        const tableRows = filteredData.map((item, index) => ({
+          srNo: index + 1,
+          hsnCode: item.hsnCode,
+          description: item.description,
+          rodtepRate: item.rodtepRate,
+          uqc: item.uqc,
+          cap: item.cap,
+        }));
+
+        return (
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Table Data:</h2>
+            <ReactTable
+              data={tableRows}
+              columns={[
+                {
+                  Header: "Sr No.",
+                  accessor: "srNo",
+                  width: 70,
+                  className: "text-center",
+                },
+                {
+                  Header: "Tariff item/HSN Code",
+                  accessor: "hsnCode",
+                  className: "text-center",
+                },
+                {
+                  Header: "Description of goods",
+                  accessor: "description",
+                  Cell: ({ value }) => (
+                    <div className="description-cell">
+                      <p className="truncate whitespace-normal">{value}</p>
+                    </div>
+                  ),
+                },
+                {
+                  Header: "RoDTEP rate",
+                  accessor: "rodtepRate",
+                  className: "text-center",
+                },
+                {
+                  Header: "UQC/UOM",
+                  accessor: "uqc",
+                  className: "text-center",
+                },
+                {
+                  Header: "Cap (Rs per UQC)",
+                  accessor: "cap",
+                  className: "text-center",
+                },
+              ]}
+              defaultPageSize={10}
+              className="-striped -highlight"
+              style={{
+                display: "block",
+                maxWidth: "100%",
+                overflowX: "auto",
+              }}
+            />
+          </div>
+        );
+      } else {
+        return (
+          <div>
+            <p>No data found for the provided HSN code.</p>
+          </div>
+        );
+      }
+    } else {
+      return null;
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
@@ -97,53 +154,41 @@ function Calculation() {
         </h1>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="hsnCode" className="block font-semibold">
-              HSN Code:
+            <label htmlFor="weight" className="block font-semibold">
+              Weight (kg):
             </label>
             <input
-              type="text"
-              id="hsnCode"
+              type="number"
+              id="weight"
               className="border rounded p-2 w-full"
-              value={hsnCode}
-              onChange={(e) => setHsnCode(e.target.value)}
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
             />
           </div>
           <div>
-            <label htmlFor="productDescription" className="block font-semibold">
-              Product Description:
+            <label htmlFor="amount" className="block font-semibold">
+              Amount ($):
             </label>
             <input
-              type="text"
-              id="productDescription"
+              type="number"
+              id="amount"
               className="border rounded p-2 w-full"
-              value={productDescription}
-              onChange={(e) => setProductDescription(e.target.value)}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
             />
           </div>
-          <div>
-            <label htmlFor="uqc" className="block font-semibold">
-              UQC:
-            </label>
-            <input
-              type="text"
-              id="uqc"
-              className="border rounded p-2 w-full"
-              value={uqc}
-              onChange={(e) => setUQC(e.target.value)}
-            />
-          </div>
-          <div>
-            <label htmlFor="cap" className="block font-semibold">
-              Cap (Rs per UQC):
-            </label>
-            <input
-              type="text"
-              id="cap"
-              className="border rounded p-2 w-full"
-              value={cap}
-              onChange={(e) => setCap(e.target.value)}
-            />
-          </div>
+        </div>
+        <div>
+          <label htmlFor="hsnCode" className="block font-semibold">
+            HSN Code:
+          </label>
+          <input
+            type="text"
+            id="hsnCode"
+            className="border rounded p-2 w-full"
+            value={hsnCode}
+            onChange={(e) => setHsnCode(e.target.value)}
+          />
         </div>
         <div className="flex justify-center">
           <button
@@ -154,23 +199,14 @@ function Calculation() {
           </button>
         </div>
 
-        {tariffItemDetails.length > 0 && (
-          <div className="mt-4">
-            <h2 className="text-xl font-semibold">Tariff Item Details:</h2>
-            <ReactTable
-              data={tariffItemDetails}
-              columns={columns}
-              defaultPageSize={1}
-              className="-striped -highlight"
-            />
-          </div>
-        )}
         {roDTEP && (
           <div className="mt-4">
             <h2 className="text-xl font-semibold">Calculated RoDTEP:</h2>
             <p>RoDTEP Value: {roDTEP}</p>
           </div>
         )}
+
+        <div className="mt-4">{renderTable()}</div>
       </div>
     </div>
   );

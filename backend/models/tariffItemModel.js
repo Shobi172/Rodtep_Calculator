@@ -1,22 +1,23 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const tariffItemSchema = new mongoose.Schema({
   hsnCode: {
-    type: String,
-    required: true,
+    type: String
   },
-  productDescription: {
-    type: String,
-    required: true,
+  description: {
+    type: String
+  },
+  rodtepRate: {
+    type: String
   },
   uqc: {
-    type: String,
-    required: true,
+    type: String
   },
   cap: {
-    type: Number,
-    required: true,
+    type: String
   },
 });
 
-module.exports = mongoose.model("TariffItem", tariffItemSchema);
+const TariffItem = mongoose.model('TariffItem', tariffItemSchema);
+
+module.exports = TariffItem;
